@@ -1,6 +1,6 @@
 package com.aegisep.batch.file2db;
 
-import com.aegisep.batch.dto.ResidentVo;
+import com.aegisep.batch.dto.TextToDBVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
@@ -21,7 +21,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.PathResource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import javax.sql.DataSource;
@@ -43,41 +42,59 @@ public class BatchConfiguration {
 	@Autowired
 	private DataSource dataSource;
 
+	private final String [] names = {"aptcd","dongho","billym","monthfee","bfoverfee","bfoverduefee","bfduedtfee","afoverduefee","afduedtfee","modifydt"};
+
+	// 5 8 6 11 11 11 11 11 11 8
+	/*
+	* 05065
+	* 01101302
+	* 202208
+	* 263760
+	* 0
+	* 0
+	* 263760
+	* 0
+	* 263760
+	* 20220921
+	* */
 	@Bean
-	public FlatFileItemReader<ResidentVo> flatFileItemReader() {
+	public FlatFileItemReader<TextToDBVo> flatFileItemReader() {
 
 		int index = 1;
 
 		Range [] ranges = {
-				new Range(index, index = index+4),
-				new Range(index = index + 1, index = index + 4),
+				new Range(index, index = index + 4),
 				new Range(index = index + 1, index = index + 7),
-				new Range(index = index + 1, index = index + 7),
-				new Range(index = index + 1, index = index + 9),
-				new Range(index = index + 1, index = index + 9),
-				new Range(index = index + 1, index + 12)};
+				new Range(index = index + 1, index = index + 5),
+				new Range(index = index + 1, index = index + 10),
+				new Range(index = index + 1, index = index + 10),
+				new Range(index = index + 1, index = index + 10),
+				new Range(index = index + 1, index = index + 10),
+				new Range(index = index + 1, index = index + 10),
+				new Range(index = index + 1, index = index + 10),
+				new Range(index = index + 1, index + 7)};
 
 		log.debug(" >>>>>>>>>>> " + ranges.length + " >>>>>>>>>>>> " + index);
 
-		return new FlatFileItemReaderBuilder<ResidentVo>()
-				.name("personItemReader")
-				.resource(new PathResource("output/RS001.20230118.txt"))
+		return new FlatFileItemReaderBuilder<TextToDBVo>()
+				.name("TextToDBItemReader")
+				.resource(new PathResource("output/DS001.20230208.txt"))
 				.encoding("EUC-KR")
 				.fixedLength()
 				.columns(ranges)
-				.names("aptcd", "orgaptcd", "dongho", "occu_date", "rel", "name", "mobile_tel_no1")
-				.fieldSetMapper(new BeanWrapperFieldSetMapper<ResidentVo>() {{
-					setTargetType(ResidentVo.class);
+				.names(names)
+				.fieldSetMapper(new BeanWrapperFieldSetMapper<>() {{
+					setTargetType(TextToDBVo.class);
 				}})
 				.build();
 	}
 
 	@Bean
-	public JdbcBatchItemWriter<ResidentVo> jdbcBatchItemWriter() {
-		return new JdbcBatchItemWriterBuilder<ResidentVo>()
+	public JdbcBatchItemWriter<TextToDBVo> jdbcBatchItemWriter() {
+		return new JdbcBatchItemWriterBuilder<TextToDBVo>()
 				.itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
-				.sql("INSERT INTO resident (aptcd, orgaptcd, dongho, occu_date, rel, name, mobile_tel_no1) " +
-						"VALUES (:aptcd, :orgaptcd, :dongho, :occu_date, :rel, :name, :mobile_tel_no1)")
+				.sql("INSERT INTO bill (aptcd,dongho,billym,custid,monthfee,bfoverfee,bfoverduefee,bfduedtfee,afoverduefee,afduedtfee,modifydt) " +
+						"VALUES (:aptcd,:dongho,:billym, 0,:monthfee,:bfoverfee,:bfoverduefee,:bfduedtfee,:afoverduefee,:afduedtfee,:modifydt)")
 				.dataSource(dataSource)
 				.build();
 	}
@@ -99,13 +116,13 @@ public class BatchConfiguration {
 	@Bean
 	public Step step1(){
 		return stepBuilderFactory.get("step1")
-			.<ResidentVo, ResidentVo> chunk(chunkSize)
+			.<TextToDBVo, TextToDBVo> chunk(chunkSize)
 			.reader(flatFileItemReader())
 			.processor(processor())
 			.writer(jdbcBatchItemWriter())
 			.faultTolerant()
-			.noRollback(NullPointerException.class) // null point exception
-			.noRollback(FlatFileParseException.class)
+//			.noRollback(NullPointerException.class) // null point exception
+//			.noRollback(FlatFileParseException.class)
 			.build();
 	}
 }
